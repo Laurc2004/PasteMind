@@ -58,27 +58,27 @@ jobs:
             "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg" \
             > "${OUT_DIR}/SHA256SUMS.txt"
 
-          cat > "${OUT_DIR}/RELEASE_NOTES.md" <<EOF
-# PasteMind ${TAG}
-
-Release date: $(date -u +"%Y-%m-%d")
-
-## Downloads
-
-- PasteMind_${VERSION}_macos_aarch64.dmg
-- PasteMind_${VERSION}_macos_aarch64.app.zip
-- SHA256SUMS.txt
-
-## Highlights
-
-- Local-first clipboard manager for macOS 13+ (Apple Silicon)
-- Menu bar app with global hotkey
-- Text and image clipboard history
-- Click text/image content to paste immediately
-- Custom hotkey recording, including F1-F24 support
-- Bilingual UI (Chinese / English)
-- Privacy-first: no cloud upload
-EOF
+          {
+            echo "# PasteMind ${TAG}"
+            echo
+            echo "Release date: $(date -u +"%Y-%m-%d")"
+            echo
+            echo "## Downloads"
+            echo
+            echo "- PasteMind_${VERSION}_macos_aarch64.dmg"
+            echo "- PasteMind_${VERSION}_macos_aarch64.app.zip"
+            echo "- SHA256SUMS.txt"
+            echo
+            echo "## Highlights"
+            echo
+            echo "- Local-first clipboard manager for macOS 13+ (Apple Silicon)"
+            echo "- Menu bar app with global hotkey"
+            echo "- Text and image clipboard history"
+            echo "- Click text/image content to paste immediately"
+            echo "- Custom hotkey recording, including F1-F24 support"
+            echo "- Bilingual UI (Chinese / English)"
+            echo "- Privacy-first: no cloud upload"
+          } > "${OUT_DIR}/RELEASE_NOTES.md"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2

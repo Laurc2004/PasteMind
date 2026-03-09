@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2] - 2026-03-09
+
+### Fixed
+
+- Fixed GitHub Actions release workflow YAML parsing issue.
+- Restored automatic macOS release pipeline trigger on tag push.
+
 ## [0.1.1] - 2026-03-09
 
 ### Added
