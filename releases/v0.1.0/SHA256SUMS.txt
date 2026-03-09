@@ -1,0 +1,1 @@
+f67374c84dcf27821316996d1939cca5ee03492f16de7016170dcc59690d6409  releases/v0.1.0/PasteMind_0.1.0_macos_aarch64.app.zip

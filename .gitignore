@@ -1,0 +1,11 @@
+node_modules
+.svelte-kit
+build
+dist
+coverage
+src-tauri/target
+src-tauri/gen
+.DS_Store
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="pm-bg" x1="20" y1="12" x2="102" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B71FF"/>
+      <stop offset="1" stop-color="#5AD7FF"/>
+    </linearGradient>
+    <linearGradient id="pm-clip" x1="48" y1="35" x2="48" y2="93" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FCFF"/>
+      <stop offset="1" stop-color="#DDEEFF"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="104" height="104" rx="24" fill="url(#pm-bg)"/>
+  <path d="M40 42a6 6 0 0 1 6-6h8.3a10 10 0 0 1 19.4 0H82a6 6 0 0 1 6 6v45a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V42Z" fill="url(#pm-clip)"/>
+  <rect x="52" y="31" width="24" height="12" rx="6" fill="#E8F3FF"/>
+  <rect x="50" y="56" width="28" height="4" rx="2" fill="#4A8AF0" opacity="0.6"/>
+  <rect x="50" y="66" width="28" height="4" rx="2" fill="#4A8AF0" opacity="0.6"/>
+  <rect x="50" y="76" width="22" height="4" rx="2" fill="#4A8AF0" opacity="0.6"/>
+</svg>
