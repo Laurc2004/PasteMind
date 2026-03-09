@@ -1,0 +1,99 @@
+name: release-macos
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+    env:
+      CI: "true"
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app and dmg
+        run: pnpm tauri build -b app,dmg
+
+      - name: Prepare release assets
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          OUT_DIR="releases/${TAG}"
+          mkdir -p "${OUT_DIR}"
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            src-tauri/target/release/bundle/macos/PasteMind.app \
+            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.app.zip"
+
+          cp "src-tauri/target/release/bundle/dmg/PasteMind_${VERSION}_aarch64.dmg" \
+            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg"
+
+          shasum -a 256 \
+            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.app.zip" \
+            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg" \
+            > "${OUT_DIR}/SHA256SUMS.txt"
+
+          cat > "${OUT_DIR}/RELEASE_NOTES.md" <<EOF
+# PasteMind ${TAG}
+
+Release date: $(date -u +"%Y-%m-%d")
+
+## Downloads
+
+- PasteMind_${VERSION}_macos_aarch64.dmg
+- PasteMind_${VERSION}_macos_aarch64.app.zip
+- SHA256SUMS.txt
+
+## Highlights
+
+- Local-first clipboard manager for macOS 13+ (Apple Silicon)
+- Menu bar app with global hotkey
+- Text and image clipboard history
+- Click text/image content to paste immediately
+- Custom hotkey recording, including F1-F24 support
+- Bilingual UI (Chinese / English)
+- Privacy-first: no cloud upload
+EOF
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PasteMind ${{ github.ref_name }}
+          body: |
+            PasteMind release for macOS (Apple Silicon).
+
+            Download:
+            - DMG installer
+            - App ZIP package
+            - SHA256 checksum file
+          files: |
+            releases/${{ github.ref_name }}/PasteMind_*_macos_aarch64.dmg
+            releases/${{ github.ref_name }}/PasteMind_*_macos_aarch64.app.zip
+            releases/${{ github.ref_name }}/SHA256SUMS.txt
+            releases/${{ github.ref_name }}/RELEASE_NOTES.md

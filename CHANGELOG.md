@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1] - 2026-03-09
+
+### Added
+
+- GitHub Actions macOS release workflow to build and publish both `.dmg` and `.app.zip`.
+- Release asset generation with SHA256 checksum and release notes attachment.
+
+### Changed
+
+- Updated macOS bundle identifier to `com.laurc2004.pastemind`.
+- Kept local default bundle target to `app` while CI builds `app,dmg`.
+
 ## [0.1.0] - 2026-03-08
 
 ### Added
