@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3] - 2026-03-09
+
+### Fixed
+
+- Made CI release asset collection robust to dynamic bundle filename outputs.
+- Added explicit app/dmg output discovery and failure diagnostics in release workflow.
+
 ## [0.1.2] - 2026-03-09
 
 ### Fixed

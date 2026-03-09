@@ -46,11 +46,20 @@ jobs:
           OUT_DIR="releases/${TAG}"
           mkdir -p "${OUT_DIR}"
 
+          APP_SRC="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
+          DMG_SRC="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+
+          if [[ -z "${APP_SRC}" || -z "${DMG_SRC}" ]]; then
+            echo "Failed to locate app or dmg output."
+            ls -R src-tauri/target/release/bundle || true
+            exit 1
+          fi
+
           ditto -c -k --sequesterRsrc --keepParent \
-            src-tauri/target/release/bundle/macos/PasteMind.app \
+            "${APP_SRC}" \
             "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.app.zip"
 
-          cp "src-tauri/target/release/bundle/dmg/PasteMind_${VERSION}_aarch64.dmg" \
+          cp "${DMG_SRC}" \
             "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg"
 
           shasum -a 256 \
