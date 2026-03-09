@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5] - 2026-03-09
+
+### Fixed
+
+- Prevented `tauri build` from reading Apple signing/notarization environment variables too early in CI.
+- Scoped Apple credentials to post-build signing/notarization steps, fixing `v0.1.4` release workflow failure.
+
 ## [0.1.4] - 2026-03-09
 
 ### Fixed

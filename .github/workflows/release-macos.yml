@@ -15,13 +15,6 @@ jobs:
     env:
       CI: "true"
       CARGO_TERM_COLOR: always
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,14 +40,21 @@ jobs:
         run: pnpm tauri build -b app
 
       - name: Resolve release security mode
+        env:
+          PM_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          PM_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          PM_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          PM_APPLE_ID: ${{ secrets.APPLE_ID }}
+          PM_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PM_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          if [[ -n "${APPLE_CERTIFICATE}" && -n "${APPLE_CERTIFICATE_PASSWORD}" && -n "${APPLE_SIGNING_IDENTITY}" ]]; then
+          if [[ -n "${PM_APPLE_CERTIFICATE}" && -n "${PM_APPLE_CERTIFICATE_PASSWORD}" && -n "${PM_APPLE_SIGNING_IDENTITY}" ]]; then
             echo "SIGNING_MODE=developer-id" >> "${GITHUB_ENV}"
           else
             echo "SIGNING_MODE=adhoc" >> "${GITHUB_ENV}"
           fi
 
-          if [[ -n "${APPLE_ID}" && -n "${APPLE_TEAM_ID}" && -n "${APPLE_APP_SPECIFIC_PASSWORD}" ]]; then
+          if [[ -n "${PM_APPLE_ID}" && -n "${PM_APPLE_TEAM_ID}" && -n "${PM_APPLE_APP_SPECIFIC_PASSWORD}" ]]; then
             echo "NOTARIZE_ENABLED=true" >> "${GITHUB_ENV}"
           else
             echo "NOTARIZE_ENABLED=false" >> "${GITHUB_ENV}"
@@ -71,6 +71,10 @@ jobs:
           echo "APP_BUNDLE=${APP_BUNDLE}" >> "${GITHUB_ENV}"
 
       - name: Import Apple certificate (optional)
+        env:
+          PM_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          PM_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           if [[ "${SIGNING_MODE}" != "developer-id" ]]; then
             echo "No signing secrets found, using ad-hoc signature."
@@ -79,21 +83,23 @@ jobs:
 
           CERT_PATH="${RUNNER_TEMP}/build_certificate.p12"
           KEYCHAIN_PATH="${RUNNER_TEMP}/build.keychain-db"
-          echo "${APPLE_CERTIFICATE}" | base64 --decode > "${CERT_PATH}"
+          echo "${PM_APPLE_CERTIFICATE}" | base64 --decode > "${CERT_PATH}"
 
           security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
           security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
           security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
-          security import "${CERT_PATH}" -P "${APPLE_CERTIFICATE_PASSWORD}" -A -f pkcs12 -k "${KEYCHAIN_PATH}"
+          security import "${CERT_PATH}" -P "${PM_APPLE_CERTIFICATE_PASSWORD}" -A -f pkcs12 -k "${KEYCHAIN_PATH}"
           security list-keychains -d user -s "${KEYCHAIN_PATH}"
           security default-keychain -d user -s "${KEYCHAIN_PATH}"
           security set-key-partition-list -S apple-tool:,apple: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
           echo "KEYCHAIN_PATH=${KEYCHAIN_PATH}" >> "${GITHUB_ENV}"
 
       - name: Sign app bundle
+        env:
+          PM_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           if [[ "${SIGNING_MODE}" == "developer-id" ]]; then
-            codesign --force --deep --options runtime --timestamp --sign "${APPLE_SIGNING_IDENTITY}" "${APP_BUNDLE}"
+            codesign --force --deep --options runtime --timestamp --sign "${PM_APPLE_SIGNING_IDENTITY}" "${APP_BUNDLE}"
           else
             # Ad-hoc signing keeps the bundle internally consistent when cert secrets are absent.
             codesign --force --deep --sign - "${APP_BUNDLE}"
@@ -105,6 +111,10 @@ jobs:
           codesign -dv --verbose=4 "${APP_BUNDLE}" 2>&1 | sed -n '1,60p'
 
       - name: Notarize and staple app (optional)
+        env:
+          PM_APPLE_ID: ${{ secrets.APPLE_ID }}
+          PM_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PM_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           if [[ "${SIGNING_MODE}" != "developer-id" || "${NOTARIZE_ENABLED}" != "true" ]]; then
             echo "Skipping app notarization."
@@ -112,14 +122,19 @@ jobs:
           fi
 
           xcrun notarytool submit "${APP_BUNDLE}" \
-            --apple-id "${APPLE_ID}" \
-            --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
-            --team-id "${APPLE_TEAM_ID}" \
+            --apple-id "${PM_APPLE_ID}" \
+            --password "${PM_APPLE_APP_SPECIFIC_PASSWORD}" \
+            --team-id "${PM_APPLE_TEAM_ID}" \
             --wait
 
           xcrun stapler staple "${APP_BUNDLE}"
 
       - name: Prepare release assets
+        env:
+          PM_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          PM_APPLE_ID: ${{ secrets.APPLE_ID }}
+          PM_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PM_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
@@ -141,14 +156,14 @@ jobs:
             "${DMG_OUT}"
 
           if [[ "${SIGNING_MODE}" == "developer-id" ]]; then
-            codesign --force --timestamp --sign "${APPLE_SIGNING_IDENTITY}" "${DMG_OUT}"
+            codesign --force --timestamp --sign "${PM_APPLE_SIGNING_IDENTITY}" "${DMG_OUT}"
           fi
 
           if [[ "${SIGNING_MODE}" == "developer-id" && "${NOTARIZE_ENABLED}" == "true" ]]; then
             xcrun notarytool submit "${DMG_OUT}" \
-              --apple-id "${APPLE_ID}" \
-              --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
-              --team-id "${APPLE_TEAM_ID}" \
+              --apple-id "${PM_APPLE_ID}" \
+              --password "${PM_APPLE_APP_SPECIFIC_PASSWORD}" \
+              --team-id "${PM_APPLE_TEAM_ID}" \
               --wait
             xcrun stapler staple "${DMG_OUT}"
           fi
