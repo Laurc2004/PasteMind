@@ -15,6 +15,13 @@ jobs:
     env:
       CI: "true"
       CARGO_TERM_COLOR: always
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,8 +43,81 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build app and dmg
-        run: pnpm tauri build -b app,dmg
+      - name: Build app bundle
+        run: pnpm tauri build -b app
+
+      - name: Resolve release security mode
+        run: |
+          if [[ -n "${APPLE_CERTIFICATE}" && -n "${APPLE_CERTIFICATE_PASSWORD}" && -n "${APPLE_SIGNING_IDENTITY}" ]]; then
+            echo "SIGNING_MODE=developer-id" >> "${GITHUB_ENV}"
+          else
+            echo "SIGNING_MODE=adhoc" >> "${GITHUB_ENV}"
+          fi
+
+          if [[ -n "${APPLE_ID}" && -n "${APPLE_TEAM_ID}" && -n "${APPLE_APP_SPECIFIC_PASSWORD}" ]]; then
+            echo "NOTARIZE_ENABLED=true" >> "${GITHUB_ENV}"
+          else
+            echo "NOTARIZE_ENABLED=false" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Locate app bundle
+        run: |
+          APP_BUNDLE="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
+          if [[ -z "${APP_BUNDLE}" ]]; then
+            echo "Failed to locate .app bundle output."
+            ls -R src-tauri/target/release/bundle || true
+            exit 1
+          fi
+          echo "APP_BUNDLE=${APP_BUNDLE}" >> "${GITHUB_ENV}"
+
+      - name: Import Apple certificate (optional)
+        run: |
+          if [[ "${SIGNING_MODE}" != "developer-id" ]]; then
+            echo "No signing secrets found, using ad-hoc signature."
+            exit 0
+          fi
+
+          CERT_PATH="${RUNNER_TEMP}/build_certificate.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/build.keychain-db"
+          echo "${APPLE_CERTIFICATE}" | base64 --decode > "${CERT_PATH}"
+
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security import "${CERT_PATH}" -P "${APPLE_CERTIFICATE_PASSWORD}" -A -f pkcs12 -k "${KEYCHAIN_PATH}"
+          security list-keychains -d user -s "${KEYCHAIN_PATH}"
+          security default-keychain -d user -s "${KEYCHAIN_PATH}"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          echo "KEYCHAIN_PATH=${KEYCHAIN_PATH}" >> "${GITHUB_ENV}"
+
+      - name: Sign app bundle
+        run: |
+          if [[ "${SIGNING_MODE}" == "developer-id" ]]; then
+            codesign --force --deep --options runtime --timestamp --sign "${APPLE_SIGNING_IDENTITY}" "${APP_BUNDLE}"
+          else
+            # Ad-hoc signing keeps the bundle internally consistent when cert secrets are absent.
+            codesign --force --deep --sign - "${APP_BUNDLE}"
+          fi
+
+      - name: Verify app signature
+        run: |
+          codesign --verify --deep --strict --verbose=2 "${APP_BUNDLE}"
+          codesign -dv --verbose=4 "${APP_BUNDLE}" 2>&1 | sed -n '1,60p'
+
+      - name: Notarize and staple app (optional)
+        run: |
+          if [[ "${SIGNING_MODE}" != "developer-id" || "${NOTARIZE_ENABLED}" != "true" ]]; then
+            echo "Skipping app notarization."
+            exit 0
+          fi
+
+          xcrun notarytool submit "${APP_BUNDLE}" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
+            --team-id "${APPLE_TEAM_ID}" \
+            --wait
+
+          xcrun stapler staple "${APP_BUNDLE}"
 
       - name: Prepare release assets
         run: |
@@ -46,31 +126,45 @@ jobs:
           OUT_DIR="releases/${TAG}"
           mkdir -p "${OUT_DIR}"
 
-          APP_SRC="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
-          DMG_SRC="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
-
-          if [[ -z "${APP_SRC}" || -z "${DMG_SRC}" ]]; then
-            echo "Failed to locate app or dmg output."
-            ls -R src-tauri/target/release/bundle || true
-            exit 1
-          fi
+          ZIP_OUT="${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.app.zip"
+          DMG_OUT="${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg"
 
           ditto -c -k --sequesterRsrc --keepParent \
-            "${APP_SRC}" \
-            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.app.zip"
+            "${APP_BUNDLE}" \
+            "${ZIP_OUT}"
 
-          cp "${DMG_SRC}" \
-            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg"
+          hdiutil create \
+            -volname "PasteMind" \
+            -srcfolder "${APP_BUNDLE}" \
+            -ov \
+            -format UDZO \
+            "${DMG_OUT}"
+
+          if [[ "${SIGNING_MODE}" == "developer-id" ]]; then
+            codesign --force --timestamp --sign "${APPLE_SIGNING_IDENTITY}" "${DMG_OUT}"
+          fi
+
+          if [[ "${SIGNING_MODE}" == "developer-id" && "${NOTARIZE_ENABLED}" == "true" ]]; then
+            xcrun notarytool submit "${DMG_OUT}" \
+              --apple-id "${APPLE_ID}" \
+              --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
+              --team-id "${APPLE_TEAM_ID}" \
+              --wait
+            xcrun stapler staple "${DMG_OUT}"
+          fi
 
           shasum -a 256 \
-            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.app.zip" \
-            "${OUT_DIR}/PasteMind_${VERSION}_macos_aarch64.dmg" \
+            "${ZIP_OUT}" \
+            "${DMG_OUT}" \
             > "${OUT_DIR}/SHA256SUMS.txt"
 
           {
             echo "# PasteMind ${TAG}"
             echo
             echo "Release date: $(date -u +"%Y-%m-%d")"
+            echo
+            echo "Signing mode: ${SIGNING_MODE}"
+            echo "Notarized: ${NOTARIZE_ENABLED}"
             echo
             echo "## Downloads"
             echo
@@ -88,6 +182,13 @@ jobs:
             echo "- Bilingual UI (Chinese / English)"
             echo "- Privacy-first: no cloud upload"
           } > "${OUT_DIR}/RELEASE_NOTES.md"
+
+      - name: Cleanup temporary keychain
+        if: always()
+        run: |
+          if [[ -n "${KEYCHAIN_PATH:-}" && -f "${KEYCHAIN_PATH}" ]]; then
+            security delete-keychain "${KEYCHAIN_PATH}" || true
+          fi
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2

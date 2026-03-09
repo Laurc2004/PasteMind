@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4] - 2026-03-09
+
+### Fixed
+
+- Reworked macOS release pipeline to explicitly sign the generated `.app` before packaging, preventing malformed bundle signatures.
+- Added optional Developer ID signing + notarization path in CI when Apple credentials are configured.
+- Rebuilt release `.dmg` from the signed app in CI instead of relying on unsigned intermediate output.
+
 ## [0.1.3] - 2026-03-09
 
 ### Fixed
