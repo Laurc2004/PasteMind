@@ -615,642 +615,701 @@
 <svelte:window on:keydown={onWindowKeydown} />
 
 <main class="shell">
-  <header class="panel hero reveal">
-    <div class="brand">
-      <div class="logo-wrap">
-        <img src="/app-icon.svg" alt="PasteMind logo" />
-      </div>
-      <div>
-        <p class="kicker">PasteMind</p>
-        <h1>{t('title')}</h1>
-        <p class="sub">{t('subtitle')}</p>
-      </div>
+  <!-- Toolbar -->
+  <header class="toolbar">
+    <div class="toolbar-left">
+      <img src="/app-icon.svg" alt="" class="toolbar-logo" />
+      <span class="toolbar-title">PasteMind</span>
+      <kbd class="toolbar-hotkey">{settings?.hotkey ?? 'Cmd+Shift+V'}</kbd>
     </div>
-
-    <div class="hero-actions">
+    <div class="toolbar-right">
       <div class="lang" role="group" aria-label={t('language')}>
-        <button
-          class:active={locale === 'zh-CN'}
-          aria-pressed={locale === 'zh-CN'}
-          on:click={() => setLocale('zh-CN')}
-        >
-          中
-        </button>
-        <button
-          class:active={locale === 'en-US'}
-          aria-pressed={locale === 'en-US'}
-          on:click={() => setLocale('en-US')}
-        >
-          EN
-        </button>
+        <button class:active={locale === 'zh-CN'} aria-pressed={locale === 'zh-CN'} on:click={() => setLocale('zh-CN')}>中</button>
+        <button class:active={locale === 'en-US'} aria-pressed={locale === 'en-US'} on:click={() => setLocale('en-US')}>EN</button>
       </div>
-      <button class="danger" on:click={openClearConfirmModal}>{t('clearAll')}</button>
+      <button class="toolbar-btn" on:click={openClearConfirmModal} title={t('clearAll')}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
     </div>
   </header>
 
-  <section class="panel metric reveal delay-1">
-    <div class="metric-item">
-      <span>{t('usingHotkey')}</span>
-      <strong>{settings?.hotkey ?? 'Cmd+Shift+V'}</strong>
-    </div>
-    <div class="metric-item">
-      <span>History</span>
-      <strong>{entries.length} {t('records')}</strong>
-    </div>
-  </section>
-
+  <!-- Permission banner -->
   {#if settings && settings.auto_paste_default && !permission.accessibility_granted}
-    <section class="panel permission reveal delay-2">
-      <p>{t('needsPermission')}</p>
-      <button class="primary" on:click={onGrantPermission}>{t('grantPermission')}</button>
-    </section>
+    <div class="permission-bar">
+      <span>{t('needsPermission')}</span>
+      <button class="accent-text" on:click={onGrantPermission}>{t('grantPermission')}</button>
+    </div>
   {/if}
 
-  <section class="panel controls reveal delay-2">
-    <div class="search-wrap">
-      <input
-        type="search"
-        bind:value={query}
-        on:input={onSearchInput}
-        placeholder={t('searchPlaceholder')}
-      />
-    </div>
-    <div class="meta">
-      <span>{entries.length} {t('records')}</span>
-      {#if loading}
-        <span>{t('syncing')}</span>
-      {/if}
-    </div>
-  </section>
+  <!-- Sticky search -->
+  <div class="search-bar">
+    <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input
+      type="search"
+      bind:value={query}
+      on:input={onSearchInput}
+      placeholder={t('searchPlaceholder')}
+      class="search-input"
+    />
+    <span class="search-count">{entries.length}</span>
+    {#if loading}
+      <span class="search-loading">{t('syncing')}</span>
+    {/if}
+  </div>
 
+  <!-- Toast -->
   {#if message}
-    <section class="panel toast" aria-live="polite" aria-label={t('statusLiveRegion')}>
+    <div class="toast" aria-live="polite" aria-label={t('statusLiveRegion')}>
       {message}
-    </section>
+    </div>
   {/if}
 
+  <!-- Clear confirm modal -->
   {#if showClearConfirm}
-    <div class="modal-backdrop">
-      <div
-        class="panel modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="clear-confirm-title"
-      >
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="modal-backdrop" on:click={closeClearConfirmModal}>
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div class="modal" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="clear-confirm-title" on:click|stopPropagation={() => {}}>
         <h2 id="clear-confirm-title">{t('clearConfirmTitle')}</h2>
         <p>{t('clearConfirmDesc')}</p>
         <div class="modal-actions">
-          <button class="ghost" on:click={closeClearConfirmModal}>{t('clearConfirmCancel')}</button>
-          <button class="danger" on:click={onConfirmClear}>{t('clearConfirmAccept')}</button>
+          <button class="btn-ghost" on:click={closeClearConfirmModal}>{t('clearConfirmCancel')}</button>
+          <button class="btn-danger" on:click={onConfirmClear}>{t('clearConfirmAccept')}</button>
         </div>
       </div>
     </div>
   {/if}
 
-  <section class="panel list reveal delay-4">
+  <!-- Entry list (the main content) -->
+  <section class="entries">
     {#if !entries.length && !loading}
       <div class="empty">{t('noData')}</div>
     {/if}
 
     {#each entries as entry (entry.id)}
       <article class="entry">
-        <div class="entry-top">
-          <span class="pill">{entry.kind === 'image' ? t('image') : t('text')}</span>
-          <span class="time">{t('copiedAt')}: {formatTime(entry.created_at)}</span>
+        <div class="entry-row">
+          <button class="entry-content" aria-label={t('clickToPaste')} on:click={() => onPasteNow(entry)}>
+            {#if entry.kind === 'image' && (entry.image_preview_data || entry.image_path)}
+              <img
+                src={entry.image_preview_data ?? toFileSrc(entry.image_path)}
+                alt={t('imageAlt')}
+                loading="lazy"
+                decoding="async"
+              />
+            {:else}
+              <span class="entry-text">{entry.text_preview ?? '-'}</span>
+            {/if}
+          </button>
+          <div class="entry-actions">
+            <button class="btn-icon" title={t('pasteNow')} on:click={() => onPasteNow(entry)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M12 11v6"/><path d="m9 14 3-3 3 3"/></svg>
+            </button>
+            <button class="btn-icon" title={t('copyOnly')} on:click={() => onCopyOnly(entry)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            </button>
+            <button class="btn-icon btn-icon-danger" title={t('delete')} on:click={() => onDelete(entry)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+            </button>
+          </div>
         </div>
-
-        <button
-          class="entry-preview"
-          aria-label={t('clickToPaste')}
-          on:click={() => onPasteNow(entry)}
-        >
-          {#if entry.kind === 'image' && (entry.image_preview_data || entry.image_path)}
-            <img
-              src={entry.image_preview_data ?? toFileSrc(entry.image_path)}
-              alt={t('imageAlt')}
-              loading="lazy"
-              decoding="async"
-            />
-          {:else}
-            <p>{entry.text_preview ?? '-'}</p>
-          {/if}
-        </button>
-
-        <div class="entry-foot">
-          <span>{entry.source_app || t('sourceUnknown')}</span>
+        <div class="entry-meta">
+          <span class="meta-source">{entry.source_app || t('sourceUnknown')}</span>
+          <span class="meta-dot">&middot;</span>
+          <span>{formatTime(entry.created_at)}</span>
+          <span class="meta-dot">&middot;</span>
           <span>{formatBytes(entry.size_bytes)}</span>
-        </div>
-
-        <div class="entry-actions">
-          <button class="primary" on:click={() => onPasteNow(entry)}>{t('pasteNow')}</button>
-          <button class="secondary" on:click={() => onCopyOnly(entry)}>{t('copyOnly')}</button>
-          <button class="ghost" on:click={() => onDelete(entry)}>{t('delete')}</button>
+          <span class="meta-kind">{entry.kind === 'image' ? t('image') : t('text')}</span>
         </div>
       </article>
     {/each}
   </section>
 
-  <section class="panel settings reveal delay-3">
-    <div>
-      <h2>{t('settingsTitle')}</h2>
-      <p>{t('settingsDesc')}</p>
-    </div>
-    <label for="hotkey-capture">{t('hotkeyLabel')}</label>
-    <div class="hotkey-row">
-      <button
-        id="hotkey-capture"
-        class="capture"
-        class:capturing={isCapturingHotkey}
-        bind:this={hotkeyCaptureButton}
-        aria-pressed={isCapturingHotkey}
-        on:click={onToggleHotkeyCapture}
-      >
-        {#if isCapturingHotkey}
-          {t('captureHotkeyPending')}
-        {:else}
-          {t('captureHotkey')}: {hotkeyDraft}
-        {/if}
-      </button>
-      <button class="primary" disabled={savingHotkey} on:click={onSaveHotkey}>
-        {savingHotkey ? t('saveInProgress') : t('saveHotkey')}
-      </button>
-    </div>
-    <small>{t('hotkeyHint')}</small>
+  <!-- Settings (collapsed toggle at bottom) -->
+  <section class="settings">
+    <details>
+      <summary>{t('openSettings')}</summary>
+      <div class="settings-body">
+        <p>{t('settingsDesc')}</p>
+        <label for="hotkey-capture" class="settings-label">{t('hotkeyLabel')}</label>
+        <div class="hotkey-row">
+          <button
+            id="hotkey-capture"
+            class="hotkey-capture"
+            class:capturing={isCapturingHotkey}
+            bind:this={hotkeyCaptureButton}
+            aria-pressed={isCapturingHotkey}
+            on:click={onToggleHotkeyCapture}
+          >
+            {#if isCapturingHotkey}
+              {t('captureHotkeyPending')}
+            {:else}
+              {t('captureHotkey')}: {hotkeyDraft}
+            {/if}
+          </button>
+          <button class="btn-primary" disabled={savingHotkey} on:click={onSaveHotkey}>
+            {savingHotkey ? t('saveInProgress') : t('saveHotkey')}
+          </button>
+        </div>
+        <small>{t('hotkeyHint')}</small>
+      </div>
+    </details>
   </section>
 </main>
 
 <style>
   :global(:root) {
-    --bg-1: #eef4ff;
-    --bg-2: #dbeafe;
-    --panel: rgb(255 255 255 / 50%);
-    --panel-strong: rgb(255 255 255 / 62%);
-    --ink: #0f172a;
-    --muted: #334155;
-    --line: rgb(255 255 255 / 58%);
-    --line-soft: rgb(148 163 184 / 35%);
-    --accent: #f97316;
-    --accent-strong: #ea580c;
-    --danger-bg: rgb(248 113 113 / 18%);
-    --danger-ink: #b91c1c;
+    --ink: #1a1a1a;
+    --ink-secondary: #6b6b6b;
+    --ink-tertiary: #9b9b9b;
+    --surface: #ffffff;
+    --surface-hover: #f5f5f5;
+    --surface-active: #ebebeb;
+    --border: #e5e5e5;
+    --border-focus: #a0a0a0;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-subtle: rgb(79 70 229 / 8%);
+    --danger: #dc2626;
+    --danger-subtle: rgb(220 38 38 / 8%);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+  }
+
+  :global(*) {
+    box-sizing: border-box;
   }
 
   :global(body) {
     margin: 0;
     color: var(--ink);
-    font-family: 'Inter', 'SF Pro Text', 'Noto Sans SC', sans-serif;
-    background:
-      radial-gradient(circle at 8% 4%, rgb(59 130 246 / 26%), transparent 24%),
-      radial-gradient(circle at 87% 10%, rgb(14 165 233 / 20%), transparent 30%),
-      radial-gradient(circle at 50% 92%, rgb(249 115 22 / 18%), transparent 34%),
-      linear-gradient(155deg, var(--bg-1), var(--bg-2));
+    font-family:
+      -apple-system, 'SF Pro Text', 'Inter', 'Noto Sans SC', 'Helvetica Neue',
+      sans-serif;
+    background: var(--surface);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
 
+  /* --- Shell: full viewport flex column --- */
   .shell {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 18px 16px 28px;
-    display: grid;
-    gap: 12px;
-    position: relative;
-  }
-
-  .panel {
-    background: linear-gradient(140deg, var(--panel), rgb(255 255 255 / 36%));
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow:
-      0 14px 28px rgb(15 23 42 / 14%),
-      inset 0 1px 0 rgb(255 255 255 / 58%);
-    backdrop-filter: blur(18px) saturate(145%);
-    -webkit-backdrop-filter: blur(18px) saturate(145%);
-  }
-
-  .hero {
     display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* --- Toolbar --- */
+  .toolbar {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    padding: 14px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 8px;
   }
 
-  .brand {
+  .toolbar-left {
     display: flex;
-    gap: 12px;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
 
-  .logo-wrap {
-    width: 48px;
-    height: 48px;
-    border-radius: 13px;
+  .toolbar-logo {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-title {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .toolbar-hotkey {
+    font-size: 11px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    color: var(--ink-tertiary);
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    white-space: nowrap;
+  }
+
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-btn {
     display: grid;
     place-items: center;
-    background: linear-gradient(155deg, rgb(255 255 255 / 48%), rgb(255 255 255 / 24%));
-    border: 1px solid var(--line);
-    box-shadow:
-      0 8px 20px rgb(15 23 42 / 16%),
-      inset 0 1px 0 rgb(255 255 255 / 68%);
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: background 120ms ease;
+    padding: 0;
   }
 
-  .logo-wrap img {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
+  .toolbar-btn:hover {
+    background: var(--surface-hover);
   }
 
-  .kicker {
-    margin: 0;
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: #475569;
-  }
-
-  h1 {
-    margin: 4px 0;
-    font-size: 25px;
-    line-height: 1.08;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 15px;
-  }
-
-  .sub,
-  .settings p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  .hero-actions {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
+  /* --- Language toggle --- */
   .lang {
     display: flex;
-    border: 1px solid var(--line);
-    border-radius: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     overflow: hidden;
-    background: rgb(255 255 255 / 28%);
   }
 
-  .lang button {
-    border-radius: 0;
-    min-width: 44px;
-  }
-
-  .lang .active {
-    background: rgb(37 99 235 / 85%);
-    color: white;
-  }
-
-  .metric {
-    padding: 12px 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    background: linear-gradient(140deg, var(--panel-strong), rgb(255 255 255 / 30%));
-  }
-
-  .metric-item {
-    display: grid;
-    gap: 2px;
-  }
-
-  .metric-item span {
+  .lang :global(button) {
+    border: none;
+    background: transparent;
     font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
+    font-weight: 500;
+    padding: 3px 8px;
+    cursor: pointer;
+    color: var(--ink-secondary);
+    transition: all 120ms ease;
   }
 
-  .metric-item strong {
-    font-size: 14px;
+  .lang :global(.active) {
+    background: var(--ink);
+    color: var(--surface);
   }
 
-  .permission {
-    padding: 12px 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    background: linear-gradient(140deg, rgb(255 247 237 / 74%), rgb(255 255 255 / 42%));
-  }
-
-  .permission p {
-    margin: 0;
-    color: #6b4d06;
-    font-size: 13px;
-  }
-
-  .controls {
-    padding: 12px 14px;
-    background: linear-gradient(145deg, rgb(255 255 255 / 55%), rgb(255 255 255 / 34%));
-  }
-
-  .search-wrap {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .meta {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  .settings {
-    padding: 12px 14px;
-    display: grid;
-    gap: 8px;
-    background: linear-gradient(145deg, rgb(255 255 255 / 58%), rgb(255 255 255 / 35%));
-  }
-
-  .hotkey-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-  }
-
-  .capture {
-    border: 1px solid var(--line-soft);
-    border-radius: 10px;
-    padding: 9px 11px;
-    background: rgb(255 255 255 / 62%);
-    color: #0f172a;
-    font-size: 13px;
+  /* --- Permission bar --- */
+  .permission-bar {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    text-align: left;
-    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
-  }
-
-  .capture.capturing {
-    border-color: rgb(59 130 246 / 70%);
-    box-shadow: 0 0 0 3px rgb(59 130 246 / 20%);
-    background: rgb(219 234 254 / 70%);
-  }
-
-  .settings label,
-  .settings small {
+    justify-content: space-between;
+    padding: 7px 12px;
+    background: #fef3c7;
+    border-bottom: 1px solid #fde68a;
     font-size: 12px;
-    color: var(--muted);
+    color: #92400e;
+    flex-shrink: 0;
   }
 
+  .accent-text {
+    border: none;
+    background: none;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .accent-text:hover {
+    text-decoration: underline;
+  }
+
+  /* --- Search bar (sticky) --- */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .search-icon {
+    color: var(--ink-tertiary);
+    flex-shrink: 0;
+  }
+
+  .search-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--ink);
+    outline: none;
+    min-width: 0;
+    transition: border-color 120ms ease;
+  }
+
+  .search-input:focus {
+    border-color: var(--border-focus);
+  }
+
+  .search-input::placeholder {
+    color: var(--ink-tertiary);
+  }
+
+  .search-count {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .search-loading {
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* --- Toast --- */
   .toast {
-    padding: 10px 12px;
-    border-color: rgb(249 115 22 / 35%);
-    background: linear-gradient(135deg, rgb(255 237 213 / 72%), rgb(255 255 255 / 46%));
-    color: #9a3412;
-    font-size: 13px;
+    padding: 7px 12px;
+    font-size: 12px;
+    color: var(--accent-hover);
+    background: var(--accent-subtle);
+    border-bottom: 1px solid rgb(79 70 229 / 15%);
+    flex-shrink: 0;
   }
 
+  /* --- Modal --- */
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgb(15 23 42 / 28%);
+    background: rgb(0 0 0 / 30%);
     display: grid;
     place-items: center;
-    padding: 16px;
-    z-index: 30;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    padding: 24px;
+    z-index: 50;
   }
 
   .modal {
-    width: min(420px, 100%);
-    padding: 14px;
-    display: grid;
-    gap: 10px;
-    background: linear-gradient(145deg, rgb(255 255 255 / 72%), rgb(255 255 255 / 42%));
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    width: min(340px, 100%);
+    box-shadow: 0 8px 32px rgb(0 0 0 / 12%);
+  }
+
+  .modal h2 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
   }
 
   .modal p {
-    margin: 0;
-    color: var(--muted);
+    margin: 0 0 16px;
     font-size: 13px;
+    color: var(--ink-secondary);
+    line-height: 1.45;
   }
 
   .modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: wrap;
   }
 
-  .list {
-    padding: 10px;
-    display: grid;
-    gap: 10px;
-    max-height: 56vh;
-    overflow: auto;
-  }
-
-  .entry {
-    border: 1px solid var(--line-soft);
-    border-radius: 12px;
-    padding: 11px;
-    background: linear-gradient(145deg, rgb(255 255 255 / 62%), rgb(255 255 255 / 38%));
-    display: grid;
-    gap: 8px;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%);
-  }
-
-  .entry-top,
-  .entry-foot {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  .entry p {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.45;
-    white-space: pre-wrap;
-  }
-
-  .entry-preview {
-    border: 1px solid transparent;
-    border-radius: 10px;
+  /* --- Entry list (main scrollable area) --- */
+  .entries {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 0;
-    background: transparent;
-    cursor: pointer;
-    display: block;
+  }
+
+  .empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--ink-tertiary);
+    font-size: 13px;
+  }
+
+  /* --- Entry card --- */
+  .entry {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    transition: background 100ms ease;
+  }
+
+  .entry:hover {
+    background: var(--surface-hover);
+  }
+
+  .entry:last-child {
+    border-bottom: none;
+  }
+
+  .entry-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .entry-content {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
     text-align: left;
+    cursor: pointer;
+    padding: 0;
+    color: var(--ink);
   }
 
-  .entry-preview:hover {
-    transform: none;
-    border-color: rgb(59 130 246 / 25%);
-    background: rgb(255 255 255 / 22%);
+  .entry-content:hover {
+    opacity: 0.8;
   }
 
-  .entry-preview:focus-visible {
-    outline: 2px solid rgb(37 99 235 / 80%);
-    outline-offset: 1px;
+  .entry-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .entry img {
-    width: 100%;
-    max-height: 180px;
+    max-width: 100%;
+    max-height: 140px;
     object-fit: contain;
-    border-radius: 10px;
-    border: 1px solid var(--line-soft);
-    background: rgb(255 255 255 / 45%);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
   }
 
   .entry-actions {
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .entry:hover .entry-actions {
+    opacity: 1;
+  }
+
+  /* On touch devices, always show actions */
+  @media (hover: none) {
+    .entry-actions {
+      opacity: 1;
+    }
+  }
+
+  .entry-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--ink-tertiary);
     flex-wrap: wrap;
   }
 
-  .pill {
-    border-radius: 999px;
-    padding: 2px 9px;
-    font-size: 11px;
-    background: rgb(59 130 246 / 12%);
-    color: #1e40af;
+  .meta-source {
+    color: var(--ink-secondary);
   }
 
-  input {
-    border: 1px solid var(--line-soft);
-    border-radius: 10px;
-    padding: 9px 11px;
-    background: rgb(255 255 255 / 62%);
-    font-size: 14px;
-    outline: none;
-    color: #0f172a;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+  .meta-dot {
+    opacity: 0.4;
   }
 
-  input:focus {
-    border-color: rgb(59 130 246 / 60%);
-    box-shadow: 0 0 0 3px rgb(59 130 246 / 20%);
+  .meta-kind {
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ink-tertiary);
   }
 
-  button {
-    border: 0;
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 13px;
-    font-weight: 550;
+  /* --- Icon buttons --- */
+  .btn-icon {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-secondary);
     cursor: pointer;
-    transition:
-      color 180ms ease,
-      background-color 180ms ease,
-      box-shadow 180ms ease,
-      transform 180ms ease;
+    padding: 0;
+    transition: background 100ms ease;
   }
 
-  button:hover {
-    transform: translateY(-1px);
+  .btn-icon:hover {
+    background: var(--surface-active);
   }
 
-  button:focus-visible {
-    outline: 2px solid #101010;
-    outline-offset: 2px;
+  .btn-icon-danger:hover {
+    background: var(--danger-subtle);
+    color: var(--danger);
   }
 
-  button:disabled {
-    opacity: 0.62;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .primary {
-    color: #fff;
-    background: linear-gradient(135deg, #2563eb, #3b82f6);
-  }
-
-  .secondary {
-    color: #0f172a;
-    background: rgb(255 255 255 / 55%);
-    border: 1px solid var(--line-soft);
-  }
-
-  .ghost {
-    color: #0f172a;
-    background: rgb(255 255 255 / 42%);
-    border: 1px solid var(--line-soft);
-  }
-
-  .danger {
-    background: var(--danger-bg);
-    color: var(--danger-ink);
-  }
-
-  .empty {
-    padding: 22px 12px;
-    text-align: center;
-    color: var(--muted);
+  /* --- Settings --- */
+  .settings {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
     font-size: 13px;
   }
 
-  .reveal {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: reveal 340ms ease forwards;
+  .settings summary {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    transition: background 100ms ease;
   }
 
-  .delay-1 {
-    animation-delay: 60ms;
+  .settings summary:hover {
+    background: var(--surface-hover);
   }
 
-  .delay-2 {
-    animation-delay: 120ms;
+  .settings summary::before {
+    content: '›';
+    display: inline-block;
+    transition: transform 150ms ease;
   }
 
-  .delay-3 {
-    animation-delay: 180ms;
+  .settings details[open] summary::before {
+    transform: rotate(90deg);
   }
 
-  .delay-4 {
-    animation-delay: 240ms;
+  .settings-body {
+    padding: 8px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  @keyframes reveal {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .settings-body p {
+    margin: 0;
+    color: var(--ink-secondary);
+    font-size: 12px;
   }
 
-  @media (max-width: 760px) {
-    .hero {
-      flex-direction: column;
-    }
-
-    .hero-actions {
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    h1 {
-      font-size: 22px;
-    }
-
-    .search-wrap,
-    .hotkey-row {
-      grid-template-columns: 1fr;
-    }
+  .settings-label {
+    font-size: 12px;
+    color: var(--ink-secondary);
   }
 
+  .hotkey-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .hotkey-capture {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 12px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 120ms ease;
+  }
+
+  .hotkey-capture.capturing {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgb(79 70 229 / 15%);
+  }
+
+  .settings small {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+  }
+
+  /* --- Button styles --- */
+  .btn-primary {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 120ms ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-hover);
+  }
+
+  .btn-danger {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--danger);
+    color: #fff;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+
+  .btn-danger:hover {
+    opacity: 0.9;
+  }
+
+  /* --- Focus visible --- */
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgb(79 70 229 / 15%);
+  }
+
+  /* --- Reduced motion --- */
   @media (prefers-reduced-motion: reduce) {
     * {
       animation: none !important;
