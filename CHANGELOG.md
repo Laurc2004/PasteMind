@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.1] - 2026-04-24
+
+### Changed
+
+- Release workflow now uses generated `RELEASE_NOTES.md` as the GitHub Release body instead of static text.
+- Signing mode and notarization status removed from public release notes.
+
+### Fixed
+
+- Added SQL identifier validation to `ensure_column_exists` to guard against future injection.
+- Objective-C FFI: explicitly retain `NSData` before reading bytes; added null check on `NSString` alloc.
+- Hotkey registration failure no longer overwrites the user's saved preference — fallback is in-memory only.
+
 ## [0.2.0] - 2026-04-24
 
 ### Added
