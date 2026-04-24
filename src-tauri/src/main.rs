@@ -133,7 +133,6 @@ fn setup_tray(app: &tauri::App) -> AppResult<()> {
 }
 
 fn build_tray_icon() -> Image<'static> {
-  // Build icon in memory so startup is independent from PNG decoding.
   let width = 24u32;
   let height = 24u32;
   let mut rgba = vec![0u8; (width * height * 4) as usize];
@@ -143,54 +142,29 @@ fn build_tray_icon() -> Image<'static> {
     buf[index..index + 4].copy_from_slice(&color);
   };
 
-  let inside_round_rect = |x: i32, y: i32, left: i32, top: i32, right: i32, bottom: i32, radius: i32| {
-    if x < left || x > right || y < top || y > bottom {
-      return false;
-    }
-    if (left + radius..=right - radius).contains(&x) || (top + radius..=bottom - radius).contains(&y) {
-      return true;
-    }
-
-    let cx = if x < left + radius { left + radius } else { right - radius };
-    let cy = if y < top + radius { top + radius } else { bottom - radius };
-    let dx = x - cx;
-    let dy = y - cy;
-    dx * dx + dy * dy <= radius * radius
-  };
-
-  let left = 2i32;
-  let top = 2i32;
-  let right = 21i32;
-  let bottom = 21i32;
-  let radius = 6i32;
-
-  for y in top..=bottom {
-    let t = (y - top) as f32 / (bottom - top) as f32;
-    let r = (27.0 + (90.0 - 27.0) * t) as u8;
-    let g = (113.0 + (215.0 - 113.0) * t) as u8;
-    let b = 255u8;
-    for x in left..=right {
-      if inside_round_rect(x, y, left, top, right, bottom, radius) {
-        set_px(&mut rgba, x as u32, y as u32, [r, g, b, 255]);
-      }
+  // Letter P — monochrome white silhouette
+  // P vertical stem
+  for y in 6..19 {
+    for x in 8..11 {
+      set_px(&mut rgba, x as u32, y as u32, [255, 255, 255, 255]);
     }
   }
-
-  // Clipboard body
-  for y in 8..20 {
-    for x in 7..18 {
-      if inside_round_rect(x, y, 7, 8, 17, 19, 2) {
-        set_px(&mut rgba, x as u32, y as u32, [244, 250, 255, 242]);
-      }
+  // P — top bar
+  for y in 6..9 {
+    for x in 8..17 {
+      set_px(&mut rgba, x as u32, y as u32, [255, 255, 255, 255]);
     }
   }
-
-  // Clipboard top clip
-  for y in 5..9 {
-    for x in 10..15 {
-      if inside_round_rect(x, y, 10, 5, 14, 8, 1) {
-        set_px(&mut rgba, x as u32, y as u32, [226, 240, 255, 255]);
-      }
+  // P — right vertical (bowl)
+  for y in 6..14 {
+    for x in 14..17 {
+      set_px(&mut rgba, x as u32, y as u32, [255, 255, 255, 255]);
+    }
+  }
+  // P — bottom bar (bowl closure)
+  for y in 11..14 {
+    for x in 8..17 {
+      set_px(&mut rgba, x as u32, y as u32, [255, 255, 255, 255]);
     }
   }
 
