@@ -1,6 +1,6 @@
 [package]
 name = "pastemind"
-version = "0.2.1"
+version = "0.2.2"
 description = "PasteMind: a local-first clipboard manager for macOS"
 authors = ["PasteMind Contributors"]
 license = "MIT"

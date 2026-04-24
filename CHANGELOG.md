@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2] - 2026-04-24
+
+### Fixed
+
+- Fixed a critical macOS startup crash in the clipboard bridge by returning the initialized `NSString` from `initWithBytes:length:encoding:` instead of the pre-init `alloc` pointer.
+- Verified the app starts cleanly again under `pnpm tauri dev` without Objective-C exceptions or Rust aborts.
+
 ## [0.2.1] - 2026-04-24
 
 ### Changed
