@@ -1,6 +1,6 @@
 {
   "name": "pastemind",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test:rust": "cd src-tauri && cargo test",
-    "test": "pnpm test:rust"
+    "test": "pnpm test:rust",
+    "version": "./scripts/sync-version.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0"

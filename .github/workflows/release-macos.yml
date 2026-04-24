@@ -3,7 +3,7 @@ name: release-macos
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,7 @@ jobs:
   build-and-release:
     runs-on: macos-14
     env:
-      CI: "true"
+      CI: 'true'
       CARGO_TERM_COLOR: always
     steps:
       - name: Checkout
@@ -32,6 +32,23 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate version consistency
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          PKG=$(node -e "console.log(require('./package.json').version)")
+          CARGO=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          TAURI=$(node -e "console.log(require('./src-tauri/tauri.conf.json').version)")
+          if [[ "$VERSION" != "$PKG" || "$VERSION" != "$CARGO" || "$VERSION" != "$TAURI" ]]; then
+            echo "Version mismatch!" >&2
+            echo "  Tag:    $VERSION" >&2
+            echo "  pkg:    $PKG" >&2
+            echo "  Cargo:  $CARGO" >&2
+            echo "  Tauri:  $TAURI" >&2
+            exit 1
+          fi
+          echo "Version $VERSION consistent across all config files."
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
