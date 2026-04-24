@@ -77,10 +77,14 @@ fn read_payload_from_macos_pasteboard() -> AppResult<Option<ImagePayload>> {
       return Ok(None);
     }
 
+    // Retain NSData to prevent deallocation while reading bytes.
+    let _: () = msg_send![raw, retain];
     let bytes = slice::from_raw_parts(bytes_ptr, length);
     let decoded = image::load_from_memory_with_format(bytes, format).map_err(|err| {
       AppError::Clipboard(format!("failed to decode macOS pasteboard image: {err}"))
     })?;
+    // Release the retain we added above; the original reference is still owned by the pasteboard.
+    let _: () = msg_send![raw, release];
     let rgba = decoded.to_rgba8();
     let (width, height) = rgba.dimensions();
 
@@ -102,12 +106,16 @@ unsafe fn nsstring_from_str(value: &str) -> *mut objc::runtime::Object {
   use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 
   let ns_string: *mut Object = msg_send![class!(NSString), alloc];
-  msg_send![
+  if ns_string.is_null() {
+    return std::ptr::null_mut();
+  }
+  let _: *mut Object = msg_send![
     ns_string,
     initWithBytes: value.as_ptr() as *const c_void
     length: value.len()
     encoding: NS_UTF8_ENCODING
-  ]
+  ];
+  ns_string
 }
 
 #[cfg(target_os = "macos")]
