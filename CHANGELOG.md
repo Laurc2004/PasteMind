@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.0] - 2026-04-24
+
+### Added
+
+- CI workflow (`ci.yml`) for automated lint, format, type check, clippy, and test on every push/PR.
+- Version synchronization script (`scripts/sync-version.sh`) and `pnpm version` command.
+- Version consistency validation step in release workflow.
+- Rust compilation cache (`Swatinem/rust-cache`) in release workflow.
+- Modular frontend architecture: extracted `$lib/i18n`, `$lib/format`, `$lib/hotkey`, and Svelte components (`EntryCard`, `ConfirmModal`, `Toast`).
+
+### Changed
+
+- Enabled Content Security Policy (CSP) in Tauri webview for security hardening.
+- Split monolithic `+page.svelte` (1319 lines) into focused modules and components.
+- Migrated component event handlers to Svelte 5 `onclick` syntax.
+
+### Fixed
+
+- Race condition in `reloadEntries()` — concurrent calls no longer corrupt loading state or produce stale data (generation counter).
+- Unhandled promise rejection in `onPasteNow` — `reloadPermission()` now has its own try-catch.
+- Event listener leak on rapid mount/unmount — cleanup now awaits listener setup promises.
+- `localStorage` operations now wrapped in try-catch for Safari private browsing compatibility.
+- Clippy warnings: collapsed nested if, needless `as_bytes()`, needless borrows, and dead code in `main.rs`.
+
 ## [0.1.5] - 2026-03-09
 
 ### Fixed
