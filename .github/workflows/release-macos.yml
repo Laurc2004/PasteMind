@@ -195,9 +195,6 @@ jobs:
             echo
             echo "Release date: $(date -u +"%Y-%m-%d")"
             echo
-            echo "Signing mode: ${SIGNING_MODE}"
-            echo "Notarized: ${NOTARIZE_ENABLED}"
-            echo
             echo "## Downloads"
             echo
             echo "- PasteMind_${VERSION}_macos_aarch64.dmg"
@@ -227,13 +224,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: PasteMind ${{ github.ref_name }}
-          body: |
-            PasteMind release for macOS (Apple Silicon).
-
-            Download:
-            - DMG installer
-            - App ZIP package
-            - SHA256 checksum file
+          body_path: releases/${{ github.ref_name }}/RELEASE_NOTES.md
           files: |
             releases/${{ github.ref_name }}/PasteMind_*_macos_aarch64.dmg
             releases/${{ github.ref_name }}/PasteMind_*_macos_aarch64.app.zip
