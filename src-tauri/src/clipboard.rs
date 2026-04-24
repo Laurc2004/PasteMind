@@ -109,13 +109,15 @@ unsafe fn nsstring_from_str(value: &str) -> *mut objc::runtime::Object {
   if ns_string.is_null() {
     return std::ptr::null_mut();
   }
-  let _: *mut Object = msg_send![
+
+  let initialized: *mut Object = msg_send![
     ns_string,
     initWithBytes: value.as_ptr() as *const c_void
     length: value.len()
     encoding: NS_UTF8_ENCODING
   ];
-  ns_string
+
+  initialized
 }
 
 #[cfg(target_os = "macos")]
