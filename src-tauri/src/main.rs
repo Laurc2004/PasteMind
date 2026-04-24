@@ -82,18 +82,20 @@ fn register_hotkey(app: &tauri::App, state: &Arc<AppState>) -> AppResult<()> {
     Ok(_) => Ok(()),
     Err(err) => {
       log::warn!(
-        "failed to register configured hotkey '{}': {}. Falling back to {}",
+        "failed to register configured hotkey '{}': {}. Falling back to {} in memory (user preference preserved)",
         configured,
         err,
         hotkey::DEFAULT_HOTKEY
       );
 
+      // Use the fallback in memory but do NOT overwrite the user's saved preference.
       hotkey::apply_hotkey(app.handle(), hotkey::DEFAULT_HOTKEY)?;
 
-      let mut next = state.settings_snapshot();
-      next.hotkey = hotkey::DEFAULT_HOTKEY.to_string();
-      state.storage.save_settings(&next)?;
-      state.replace_settings(next);
+      let mut fallback = state.settings_snapshot();
+      fallback.hotkey = hotkey::DEFAULT_HOTKEY.to_string();
+      // Save the fallback as the active runtime setting but keep the user's
+      // original choice visible so they can reconfigure on next launch.
+      state.replace_settings(fallback);
       Ok(())
     }
   }
