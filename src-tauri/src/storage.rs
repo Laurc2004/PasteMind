@@ -324,12 +324,24 @@ impl Storage {
     Ok(path)
   }
 
+  fn validate_identifier(s: &str) -> AppResult<()> {
+    if s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+      Ok(())
+    } else {
+      Err(AppError::Other(format!("invalid SQL identifier: {s}")))
+    }
+  }
+
   fn ensure_column_exists(
     conn: &Connection,
     table_name: &str,
     column_name: &str,
     column_type: &str
   ) -> AppResult<()> {
+    Self::validate_identifier(table_name)?;
+    Self::validate_identifier(column_name)?;
+    Self::validate_identifier(column_type)?;
+
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({table_name})"))?;
     let columns = stmt.query_map([], |row| row.get::<_, String>(1))?;
 
