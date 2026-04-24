@@ -78,7 +78,7 @@ fn register_hotkey(app: &tauri::App, state: &Arc<AppState>) -> AppResult<()> {
   let configured = state.settings_snapshot().hotkey;
   let normalized = hotkey::normalize_hotkey(&configured);
 
-  match hotkey::apply_hotkey(&app.handle(), &normalized) {
+  match hotkey::apply_hotkey(app.handle(), &normalized) {
     Ok(_) => Ok(()),
     Err(err) => {
       log::warn!(
@@ -88,7 +88,7 @@ fn register_hotkey(app: &tauri::App, state: &Arc<AppState>) -> AppResult<()> {
         hotkey::DEFAULT_HOTKEY
       );
 
-      hotkey::apply_hotkey(&app.handle(), hotkey::DEFAULT_HOTKEY)?;
+      hotkey::apply_hotkey(app.handle(), hotkey::DEFAULT_HOTKEY)?;
 
       let mut next = state.settings_snapshot();
       next.hotkey = hotkey::DEFAULT_HOTKEY.to_string();
@@ -124,7 +124,7 @@ fn setup_tray(app: &tauri::App) -> AppResult<()> {
         ..
       } = event
       {
-        let _ = toggle_main_window(&tray.app_handle());
+        let _ = toggle_main_window(tray.app_handle());
       }
     })
     .build(app)?;
@@ -168,7 +168,7 @@ fn build_tray_icon() -> Image<'static> {
     let t = (y - top) as f32 / (bottom - top) as f32;
     let r = (27.0 + (90.0 - 27.0) * t) as u8;
     let g = (113.0 + (215.0 - 113.0) * t) as u8;
-    let b = (255.0 + (255.0 - 255.0) * t) as u8;
+    let b = 255u8;
     for x in left..=right {
       if inside_round_rect(x, y, left, top, right, bottom, radius) {
         set_px(&mut rgba, x as u32, y as u32, [r, g, b, 255]);

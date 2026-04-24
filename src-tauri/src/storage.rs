@@ -181,7 +181,7 @@ impl Storage {
           id,
           truncate_preview(text, 180),
           text,
-          text.as_bytes().len() as i64,
+          text.len() as i64,
           source_app,
           hash,
           now.to_rfc3339(),

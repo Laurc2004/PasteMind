@@ -20,10 +20,8 @@ where
   F: Fn(&ClipboardEntry) -> AppResult<()>,
   G: Fn() -> AppResult<()>
 {
-  if auto_paste {
-    if !accessibility_granted {
-      return Err(AppError::PermissionDenied);
-    }
+  if auto_paste && !accessibility_granted {
+    return Err(AppError::PermissionDenied);
   }
 
   write_clipboard(entry)?;
